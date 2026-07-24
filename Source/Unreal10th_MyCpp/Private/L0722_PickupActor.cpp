@@ -4,6 +4,8 @@
 #include "L0722_PickupActor.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "L0723_Player.h"
+#include "L0723_StatComponent.h"
 #include "../Interface/StaminaInterface.h"
 
 // Sets default values
@@ -45,16 +47,34 @@ void AL0722_PickupActor::NotifyActorBeginOverlap(AActor* OtherActor)
 	// bImplements이 true 이면 인터페이스를 구현했다.(=C++ 이니까 구현도 되어 있다. 블루프린트에서 상속을 했을 경우에는 체크가 불가능)
 	// bool bImplements = OtherActor->Implements<UStaminaInterface>()
 
-	if (OtherActor && OtherActor->Implements<UStaminaInterface>())
+	if (AL0723_Player* Player = Cast<AL0723_Player>(OtherActor))
 	{
-		if (Stamina > 0)
-		{
-			IStaminaInterface::Execute_RecoveryStamina(OtherActor, Stamina);
-		}
-		else
-		{
-			IStaminaInterface::Execute_ConsumeStamina(OtherActor, Stamina);
-		}
+		UWorld* World = GetWorld();
+		FTimerManager& TimerManager = World->GetTimerManager();
+
+		TimerManager.SetTimer(
+			StaminaTickTimer,
+			FTimerDelegate::CreateLambda(
+				[this, Player]()
+				{
+					if (Stamina > 0) {
+						Player->GetStatComponent()->IStaminaInterface::Execute_RecoveryStamina(Player->GetStatComponent(), Stamina);
+					}
+					else {
+						Player->GetStatComponent()->IStaminaInterface::Execute_ConsumeStamina(Player->GetStatComponent(), -Stamina);
+					}
+				}
+			),
+			HealthTickInterval,
+			true
+		);
 	}
+}
+
+void AL0722_PickupActor::NotifyActorEndOverlap(AActor* OtherActor)
+{
+	UWorld* World = GetWorld();
+	FTimerManager& TimerManager = World->GetTimerManager();
+	TimerManager.ClearTimer(StaminaTickTimer);
 }
 

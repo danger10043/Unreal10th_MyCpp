@@ -4,23 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "L0722_PickupActor.generated.h"
+#include "P0723_HealPickup.generated.h"
 
 class UStaticMeshComponent;
 class USphereComponent;
 
 UCLASS()
-class UNREAL10TH_MYCPP_API AL0722_PickupActor : public AActor
+class UNREAL10TH_MYCPP_API AP0723_HealPickup : public AActor
 {
 	GENERATED_BODY()
 	
 public:	
 	// Sets default values for this actor's properties
-	AL0722_PickupActor();
-
-	virtual void NotifyActorBeginOverlap(AActor* OtherActor) override;
-
-	virtual void NotifyActorEndOverlap(AActor* OtherActor) override;
+	AP0723_HealPickup();
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -28,21 +24,25 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-// Pickup Item Values
+	virtual void NotifyActorBeginOverlap(AActor* OtherActor) override;
+
+	virtual void NotifyActorEndOverlap(AActor* OtherActor) override;
+
+	// Health Values
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Stamina = 30.0f;
+	float Health = 30.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float HealthTickInterval = 0.2f;
 
-// Pickup Item Components:
+	// Pickup Item Components
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<USphereComponent> SphereCollision = nullptr;
-	
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UStaticMeshComponent> ItemMesh = nullptr;
 
 	// Health Timer
-	FTimerHandle StaminaTickTimer;
+	FTimerHandle HealthTickTimer;
 
 };
