@@ -4,6 +4,7 @@
 #include "P0723_HealPickup.h"
 #include "L0723_Player.h"
 #include "L0723_StatComponent.h"
+#include "P0723_StatComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 
@@ -37,7 +38,7 @@ void AP0723_HealPickup::Tick(float DeltaTime)
 
 void AP0723_HealPickup::NotifyActorBeginOverlap(AActor* OtherActor)
 {
-	if (AL0723_Player* Player = Cast<AL0723_Player>(OtherActor))
+	if (IP0723_StatComponent* Player = Cast<IP0723_StatComponent>(OtherActor))
 	{
 		UWorld* World = GetWorld();
 		FTimerManager& TimerManager = World->GetTimerManager();

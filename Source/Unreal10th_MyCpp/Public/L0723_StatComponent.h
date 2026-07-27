@@ -27,7 +27,31 @@ enum class EStaminaValueType
 	RollCost
 };
 
+//DECLARE_DELEGATE(FuncName);  함수 포인터 사용
+//DECLARE_DYNAMIC_DELEGATE(FuncName); 리플랙션 시스템 사용(문자열을 키로 하는 테이블).블루프린트에서 사용가능하지만 느리다.DYNAMIC이 붙은 델리게이트에는 무조건 UFUNCTION이 붙은 함수만 사용 가능하다.
+//
+//DECLARE_MULTICAST_DELEGATE(FuncName); 바인딩 시킬 함수를 여러개 저장 가능.
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE(FuncName);
+//
+//DECLARE_MULTICAST_DELEGATE_TwoParams(FuncName, int, float);
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FuncName, int, Data); // 블루프린트에서는 변수명이 보여야 하기 때문에 변수명도 지정.
+//
+//DECLARE_DELEGATE_RetVal(int, FuncName); // 리턴을 int로 하는 Delegate
+//DECLARE_DYNAMIC_DELEGATE_RetVal_OneParam(float, FuncName, int, Data) // 리턴이 float 이고 parameter가 int Data
+
+// Event
+// - 델리게이트와 거의 같음
+// - 기본적으로 멀티캐스트(listener가 여러명)
+// - 리턴값이 무조건 없다.
+// - 클래스 밖에서 호출할 수 없다.
+// - C++ 전용
+// DECLARE_EVENT(AAcotr, FuncName)
+
+
 DECLARE_DELEGATE(FOnRunEnd);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStatEmpty);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStatChange, float, Current, float, Max);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class UNREAL10TH_MYCPP_API UL0723_StatComponent : public UActorComponent, public IStaminaInterface, public IP0723_HealthInterface
@@ -40,6 +64,8 @@ public:
 
 	// Stamina Interface Function
 	virtual float GetCurrentStamina_Implementation() const override;
+
+	virtual float GetMaxStamina_Implementation() const override;
 
 	virtual bool ConsumeStamina_Implementation(float InAmount) override;
 
@@ -62,6 +88,21 @@ public:
 	virtual bool DamageHealth_Implementation(float InAmount) override;
 
 	virtual void HealHealth_Implementation(float InAmount) override;
+
+	// Delegate 함수
+public:
+	UPROPERTY(BlueprintAssignable, Category = "Stat|Stamina")
+	FOnStatEmpty OnStaminaEmpty;
+
+	UPROPERTY(BlueprintAssignable, Category = "Stat|Health")
+	FOnStatEmpty OnDie;
+
+	UPROPERTY(BlueprintAssignable, Category = "Stat|Stamina")
+	FOnStatChange OnStaminaChange;
+
+	UPROPERTY(BlueprintAssignable, Category = "Stat|Health")
+	FOnStatChange OnHealthChange;
+
 
 	// Basic Function
 protected:

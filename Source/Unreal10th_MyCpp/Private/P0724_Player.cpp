@@ -1,9 +1,11 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "L0723_Player.h"
+#include "P0724_Player.h"
+#include "../UI/P0724_StatProgressUI.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/WidgetComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Camera/CameraComponent.h"
@@ -14,7 +16,7 @@
 #include "L0723_StatComponent.h"
 
 // Sets default values
-AL0723_Player::AL0723_Player()
+AP0724_Player::AP0724_Player()
 {
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
@@ -25,6 +27,7 @@ AL0723_Player::AL0723_Player()
 	RightHandMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("RightMesh"));
 	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
+	StatUIComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("StatUI"));
 
 	StatComponent = CreateDefaultSubobject<UL0723_StatComponent>(TEXT("Stat"));
 
@@ -34,6 +37,7 @@ AL0723_Player::AL0723_Player()
 	RightHandMesh->SetupAttachment(GetMesh(), FName("hand_rSocket"));
 	SpringArmComponent->SetupAttachment(RootComponent);
 	CameraComponent->SetupAttachment(SpringArmComponent);
+	StatUIComponent->SetupAttachment(GetMesh());
 
 	bUseControllerRotationYaw = false; // 컨트롤러 움직일 때 같이 회전되는 것 방지
 	GetCharacterMovement()->bOrientRotationToMovement = true; // 캐릭터 이동방향으로 바라보게 만들기
@@ -43,7 +47,7 @@ AL0723_Player::AL0723_Player()
 }
 
 // Called when the game starts or when spawned
-void AL0723_Player::BeginPlay()
+void AP0724_Player::BeginPlay()
 {
 	Super::BeginPlay();
 	UEnhancedInputLocalPlayerSubsystem* SubSystem = nullptr;
@@ -63,12 +67,12 @@ void AL0723_Player::BeginPlay()
 	{
 		SubSystem->AddMappingContext(DefaultMappingContext, InputPriority);
 	}
-	
+
 	AnimInstance = GetMesh()->GetAnimInstance();
 
 	StatComponent->RunEndFunc.BindUObject(
 		this,
-		&AL0723_Player::OnRunEndFunction
+		&AP0724_Player::OnRunEndFunction
 	);
 
 	// GetCurrentStamina(); : 실행했을 때 C++ 에 구현된 내용만 호출한다.
@@ -77,44 +81,48 @@ void AL0723_Player::BeginPlay()
 }
 
 // Called every frame
-void AL0723_Player::Tick(float DeltaTime)
+void AP0724_Player::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	//UE_LOG(LogTemp, Log, TEXT("현재 스태미나 : %3.1f / 현재 체력 : %3.1f"), IStaminaInterface::Execute_GetCurrentStamina(StatComponent), IP0723_HealthInterface::Execute_GetCurrentHealth(StatComponent));
+
+	FVector StatUIDirection = CameraComponent->GetComponentLocation() - StatUIComponent->GetComponentLocation();
+	FRotator StatUIRotation = StatUIDirection.Rotation();
+	StatUIComponent->SetWorldRotation(StatUIRotation);
 }
 
 // Called to bind functionality to input
-void AL0723_Player::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+void AP0724_Player::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 	if (UEnhancedInputComponent* InputComponentValue = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
-		InputComponentValue->BindAction(IA_Move, ETriggerEvent::Triggered, this, &AL0723_Player::MoveFunction);
-		InputComponentValue->BindAction(IA_Look, ETriggerEvent::Triggered, this, &AL0723_Player::LookFunction);
-		InputComponentValue->BindAction(IA_Run, ETriggerEvent::Started, this, &AL0723_Player::RunStartFunction);
-		InputComponentValue->BindAction(IA_Run, ETriggerEvent::Completed, this, &AL0723_Player::RunEndFunction);
-		InputComponentValue->BindAction(IA_Roll, ETriggerEvent::Started, this, &AL0723_Player::RollFunction);
+		InputComponentValue->BindAction(IA_Move, ETriggerEvent::Triggered, this, &AP0724_Player::MoveFunction);
+		InputComponentValue->BindAction(IA_Look, ETriggerEvent::Triggered, this, &AP0724_Player::LookFunction);
+		InputComponentValue->BindAction(IA_Run, ETriggerEvent::Started, this, &AP0724_Player::RunStartFunction);
+		InputComponentValue->BindAction(IA_Run, ETriggerEvent::Completed, this, &AP0724_Player::RunEndFunction);
+		InputComponentValue->BindAction(IA_Roll, ETriggerEvent::Started, this, &AP0724_Player::RollFunction);
 	}
 }
 
-void AL0723_Player::OnRunStartFunction()
+void AP0724_Player::OnRunStartFunction()
 {
 	StatComponent->OnRunStart();
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed * RunMultiplier;
 }
 
-void AL0723_Player::OnRunEndFunction()
+void AP0724_Player::OnRunEndFunction()
 {
 	StatComponent->OnRunEnd();
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
 }
 
-UL0723_StatComponent* AL0723_Player::GetStatComponent() const
+UL0723_StatComponent* AP0724_Player::GetStatComponent() const
 {
 	return StatComponent;
 }
 
-void AL0723_Player::MoveFunction(const FInputActionValue& InValue)
+void AP0724_Player::MoveFunction(const FInputActionValue& InValue)
 {
 	FVector2D MoveAxis = InValue.Get<FVector2D>();
 	FRotator CurrentControlRotation = GetControlRotation();
@@ -125,7 +133,7 @@ void AL0723_Player::MoveFunction(const FInputActionValue& InValue)
 	AddMovementInput(FVector(MoveDirection.X, MoveDirection.Y, 0));
 }
 
-void AL0723_Player::LookFunction(const FInputActionValue& InValue)
+void AP0724_Player::LookFunction(const FInputActionValue& InValue)
 {
 	FVector2D LookAxis = InValue.Get<FVector2D>();
 	if (APlayerController* PC = Cast<APlayerController>(GetController())) {
@@ -134,17 +142,17 @@ void AL0723_Player::LookFunction(const FInputActionValue& InValue)
 	}
 }
 
-void AL0723_Player::RunStartFunction(const FInputActionValue& InValue)
+void AP0724_Player::RunStartFunction(const FInputActionValue& InValue)
 {
 	OnRunStartFunction();
 }
 
-void AL0723_Player::RunEndFunction(const FInputActionValue& InValue)
+void AP0724_Player::RunEndFunction(const FInputActionValue& InValue)
 {
 	OnRunEndFunction();
 }
 
-void AL0723_Player::RollFunction(const FInputActionValue& InValue)
+void AP0724_Player::RollFunction(const FInputActionValue& InValue)
 {
 	if (!AnimInstance->IsAnyMontagePlaying())
 	{

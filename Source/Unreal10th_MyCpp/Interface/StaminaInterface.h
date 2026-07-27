@@ -26,10 +26,14 @@ public:
 	float GetCurrentStamina() const;
 	
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Stamina")
+	float GetMaxStamina() const;
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Stamina")
 	bool ConsumeStamina(float InAmount);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Stamina")
 	void RecoveryStamina(float InAmount);
+
 	// 순수 가상 함수 : C++ 전용
 	// virtual bool RecoveryStamina(float InAmount) = 0;
 };

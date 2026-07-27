@@ -40,6 +40,11 @@ float UL0723_StatComponent::GetCurrentStamina_Implementation() const
 	return CurrentStamina;
 }
 
+float UL0723_StatComponent::GetMaxStamina_Implementation() const
+{
+	return MaxStamina;
+}
+
 bool UL0723_StatComponent::ConsumeStamina_Implementation(float InAmount)
 {
 	bool bResult = false;
@@ -48,12 +53,20 @@ bool UL0723_StatComponent::ConsumeStamina_Implementation(float InAmount)
 		CurrentStamina -= InAmount;
 		bResult = true;
 	}
+
+	OnStaminaChange.Broadcast(CurrentStamina, MaxStamina); // 블루프린트 디스패쳐 Call 과 같다
+
+	if (FMath::IsNearlyZero(CurrentStamina))
+	{
+		OnStaminaEmpty.Broadcast();
+	}
 	return bResult;
 }
 
 void UL0723_StatComponent::RecoveryStamina_Implementation(float InAmount)
 {
 	CurrentStamina = FMath::Clamp(CurrentStamina + InAmount, 0.0f, MaxStamina);
+	OnStaminaChange.Broadcast(CurrentStamina, MaxStamina);
 }
 
 float UL0723_StatComponent::GetCurrentHealth_Implementation() const
@@ -68,21 +81,31 @@ float UL0723_StatComponent::GetMaxHealth_Implementation() const
 
 bool UL0723_StatComponent::DamageHealth_Implementation(float InAmount)
 {
+	bool bResult = false;
 	if (CurrentHealth > InAmount)
 	{
 		CurrentHealth -= InAmount;
-		return true;
+		bResult = true;
 	}
 	else
 	{
-		CurrentHealth = 0;
-		return false;
+		CurrentHealth = 0.0f;
+		bResult = false;
 	}
+
+	OnHealthChange.Broadcast(CurrentHealth, MaxHealth);
+	if (FMath::IsNearlyZero(CurrentHealth))
+	{
+		OnDie.Broadcast();
+	}
+
+	return bResult;
 }
 
 void UL0723_StatComponent::HealHealth_Implementation(float InAmount)
 {
 	CurrentHealth = FMath::Clamp(CurrentHealth + InAmount, 0.0f, MaxHealth);
+	OnHealthChange.Broadcast(CurrentHealth, MaxHealth);
 }
 
 void UL0723_StatComponent::OnRunStart()
