@@ -8,6 +8,7 @@
 
 class USphereComponent;
 class USceneComponent;
+class UNiagaraComponent;
 
 UCLASS()
 class UNREAL10TH_MYCPP_API AItemBase : public AActor
@@ -26,9 +27,9 @@ protected:
 
 	virtual void NotifyActorEndOverlap(AActor* OtherActor) override;
 
-	virtual void PickUpItem(AActor* InActor) = 0;
+	virtual void PickUpItem(AActor* InActor);
 
-	virtual void pickDownItem(AActor* InActor) = 0;
+	virtual void pickDownItem(AActor* InActor);
 
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -43,4 +44,11 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UStaticMeshComponent> ItemMesh = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TObjectPtr<UNiagaraComponent> NiagaraComponent = nullptr;
+
+	FVector InitialItemMeshLocation = FVector::Zero();
+
+	float ElapsedTime = 0.0f;
 };

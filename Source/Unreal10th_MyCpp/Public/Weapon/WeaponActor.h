@@ -7,7 +7,7 @@
 #include "Interface/WeaponUserInterface.h"
 #include "WeaponActor.generated.h"
 
-class UBoxComponent;
+class UCapsuleComponent;
 class UWeaponDataAsset;
 
 UCLASS()
@@ -24,7 +24,10 @@ public:
 	virtual void BeginPlay() override;
 
 	UFUNCTION(BlueprintCallable)
-	void OnEquipped(AActor* InOwner);
+	void EquipToTarget(AActor* InOwner);
+
+	UFUNCTION(BlueprintCallable)
+	void DropWeapon();
 
 	UFUNCTION(BlueprintCallable)
 	void OnHitAreaBeginOverlap(
@@ -47,23 +50,37 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-protected:
+public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UStaticMeshComponent> Mesh = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	TObjectPtr<UBoxComponent> HitArea = nullptr;
+	TObjectPtr<UCapsuleComponent> HitArea = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	FName AttachSocketName = TEXT("hand_rSocket");
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float WeaponDamage = 20.0f;
+	float WeaponDamage = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	int32 AttackCount = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UWeaponDataAsset> WeaponData;
 
+	// 무기가 드랍 된 후 사라질 때까지의 시간
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float DropLifeSpan = 10.0f;
+
+	// 드랍 직후에 플레이어와 물리 상호작용이 안되는 시간
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float PhysicsDelay = 0.8f;
+
 private:
 	// 무기를 장비하고 있는 캐릭터
 	TWeakObjectPtr<ACharacter> OwnerCharacter = nullptr;
+
+	// PhysicsDelay용 타이머 핸들
+	FTimerHandle PhysicsDelayTimerHandle;
 };

@@ -183,4 +183,10 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item")
 	TObjectPtr<UWeaponDataAsset> CurrentWeaponData = nullptr;
+
+	UFUNCTION(BlueprintCallable)
+	void SpawnWeaponActor();
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
+	TObjectPtr<UWeaponDataAsset> BasicWeaponData = nullptr;
 };

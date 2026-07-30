@@ -30,9 +30,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Appearance")
 	FName AttachSocketName = TEXT("hand_rSocket");
 
-	// 무기가 Attach할 위치의 Offset
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Appearance")
-	FVector LocationOffset = FVector::Zero();
+	// HitArea의 Offset
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HitArea")
+	FVector HitAreaLocationOffset = FVector::Zero();
 
 	// HitArea 캡슐의 높이 절반
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HitArea")
@@ -45,6 +45,10 @@ public:
 	// 무기의 공격력
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "WeaponData")
 	float AttackPower = 10.0f;
+
+	// 무기의 사용 횟수(-1인 경우 무한 사용 가능)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "WeaponData")
+	int32 AttackCount = -1;
 
 protected:
 	TSharedPtr<FStreamableHandle> AsyncLoadHandle;

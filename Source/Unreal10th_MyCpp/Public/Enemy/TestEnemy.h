@@ -13,6 +13,8 @@
 class UWidgetComponent;
 class UStatComponent;
 class AActionPlayer;
+class UWeaponDataAsset;
+class AWeaponActor;
 
 UCLASS()
 class UNREAL10TH_MYCPP_API ATestEnemy : 
@@ -51,6 +53,20 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TWeakObjectPtr<AActionPlayer> TargetPlayer = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TObjectPtr<UWeaponDataAsset> WeaponData = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item")
+	TWeakObjectPtr<AWeaponActor> CurrentWeapon = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item")
+	TObjectPtr<UWeaponDataAsset> CurrentWeaponData = nullptr;
+
+	UFUNCTION(BlueprintCallable)
+	void SpawnWeaponActor();
+
+	virtual void EquipWeapon_Implementation(UWeaponDataAsset* InWeaponData) override;
 
 public:
 	virtual float TakeDamage(

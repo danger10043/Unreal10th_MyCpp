@@ -20,11 +20,11 @@ void UStatProgressUI::NativeConstruct()
 		HealthProgressBar->SetProgressBarColor(FLinearColor(1.0f, 0.1f, 0.1f, 1.0f));
 		StaminaProgressBar->SetProgressBarColor(FLinearColor(0.1f, 1.0f, 0.1f, 1.0f));
 
-		UStatProgressBar* StatComponent = OwningPlayer->GetStatComponent();
+		UStatComponent* StatComponent = OwningPlayer->GetStatComponent();
 		StatComponent->OnHealthChange.AddDynamic(this, &UStatProgressUI::SetHealth);
 		StatComponent->OnStaminaChange.AddDynamic(this, &UStatProgressUI::SetStamina);
 
-		float MaxHealth = StatComponent->HealthInterface::Execute_GetMaxHealth(StatComponent);
+		float MaxHealth = StatComponent->IHealthInterface::Execute_GetMaxHealth(StatComponent);
 		float MaxStamina = StatComponent->IStaminaInterface::Execute_GetMaxStamina(StatComponent);
 		SetHealth(MaxHealth, MaxHealth);
 		SetStamina(MaxStamina, MaxStamina);
@@ -45,7 +45,7 @@ void UStatProgressUI::SetStamina(float CurrentValue, float MaxValue)
 	StaminaProgressBar->SetProgressBarValue(CurrentValue, MaxValue);
 }
 
-void UStatProgressUI::SetOwnerActor(StatComponentInterface* InOwner)
+void UStatProgressUI::SetOwnerActor(IStatComponentInterface* InOwner)
 {
 	OwningPlayer = InOwner;
 }
