@@ -19,9 +19,8 @@
 #include "UI/StatProgressUI.h"
 #include "UI/StatProgressBar.h"
 #include "Component/StatComponent.h"
+#include "Component/WeaponComponent.h"
 #include "AnimNotify/ComboAnimNotifyState.h"
-#include "Data/WeaponDataAsset.h"
-#include "Weapon/WeaponActor.h"
 
 // Sets default values
 AActionPlayer::AActionPlayer()
@@ -40,6 +39,7 @@ AActionPlayer::AActionPlayer()
 	StatUIComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("StatUI"));
 
 	StatComponent = CreateDefaultSubobject<UStatComponent>(TEXT("Stat"));
+	WeaponComponent = CreateDefaultSubobject<UWeaponComponent>(TEXT("Weapon"));
 
 	HornMesh->SetupAttachment(GetMesh(), FName("LegendSocket"));
 	HeadMesh->SetupAttachment(GetMesh(), FName("headSocket"));
@@ -101,14 +101,8 @@ void AActionPlayer::BeginPlay()
 		UI->SetStamina(MaxStamina, MaxStamina);
 	}
 
-	if (BasicWeaponData)
-	{
-		IWeaponUserInterface::Execute_EquipWeapon(this, BasicWeaponData);
-	}
-
 	// GetCurrentStamina(); : 실행했을 때 C++ 에 구현된 내용만 호출한다.
 	// IStaminaInterface::Execute_GetCurrentStamina(); : 실행했을 때 블루프린트 구현으로 호출한다.
-
 }
 
 // Called every frame
@@ -227,22 +221,18 @@ void AActionPlayer::RollFunction(const FInputActionValue& InValue)
 
 void AActionPlayer::AttackFunction(const FInputActionValue& InValue)
 {
-	if (AnimInstance && GetStatComponent()->IStaminaInterface::Execute_GetCurrentStamina(GetStatComponent()) > GetStatComponent()->GetStaminaValue(EStaminaValueType::AttackCost))
+	UAnimMontage* AttackMontage = WeaponComponent ? WeaponComponent->GetAttackMontage() : nullptr;
+	if (AnimInstance && AttackMontage &&
+		GetStatComponent()->IStaminaInterface::Execute_GetCurrentStamina(GetStatComponent()) > GetStatComponent()->GetStaminaValue(EStaminaValueType::AttackCost) &&
+		WeaponComponent->GetCurrentWeapon()
+		)
 	{
 		if (!AnimInstance->IsAnyMontagePlaying())
 		{
 			// 1번째 콤보 공격
 			PlayAnimMontage(AttackMontage);
 			GetStatComponent()->IStaminaInterface::Execute_ConsumeStamina(GetStatComponent(), GetStatComponent()->GetStaminaValue(EStaminaValueType::AttackCost));
-
-			if (CurrentWeapon->AttackCount > 0)
-			{
-				CurrentWeapon->AttackCount--;
-				if (CurrentWeapon->AttackCount == 0)
-				{
-					IWeaponUserInterface::Execute_EquipWeapon(this, BasicWeaponData);
-				}
-			}
+			WeaponComponent->ConsumeWeaponUse();
 		}
 		else if (AnimInstance->GetCurrentActiveMontage() == AttackMontage)
 		{
@@ -251,68 +241,13 @@ void AActionPlayer::AttackFunction(const FInputActionValue& InValue)
 	}
 }
 
-void AActionPlayer::OnWeaponAttackState(bool bEnable)
-{
-	OnOnWeaponAttackStateChanged.ExecuteIfBound(bEnable);
-}
-
 void AActionPlayer::EquipWeapon_Implementation(UWeaponDataAsset* InWeaponData)
 {
-	UE_LOG(LogTemp, Log, TEXT("%s 가 무기 착용을 시도함"), *this->GetName());
-
-	// 이전 무기 해제하기
-	if (CurrentWeapon.IsValid())
-	{
-		CurrentWeapon.Get()->DropWeapon();
-		CurrentWeapon = nullptr;
-	}
-
-	// 새 무기 장비하기
-	CurrentWeaponData = InWeaponData;
-	if (!InWeaponData->IsLoadCompleted())
-	{
-		UWeaponDataAsset* RequestedData = InWeaponData;
-		InWeaponData->RequestDataLoad(
-			FStreamableDelegate::CreateWeakLambda(
-				this,
-				[this, RequestedData]()
-				{
-					// 로딩이 완료되면 실행되는 람다 함수					
-					if (CurrentWeaponData == RequestedData)
-					{
-						// 중복으로 로딩 요청했을 때를 대비
-						SpawnWeaponActor();
-					}
-				})
-		);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Log, TEXT("WeaponData 이미 로드 완료됨"));
-		SpawnWeaponActor();
-	}
+	WeaponComponent->EquipWeapon(InWeaponData);
 }
 
 float AActionPlayer::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
 	StatComponent->IHealthInterface::Execute_DamageHealth(StatComponent, DamageAmount);
 	return DamageAmount;
-}
-
-
-void AActionPlayer::SpawnWeaponActor()
-{
-	if (!CurrentWeaponData)
-	{
-		return;	// 로딩 요청이 끝나기 전에 해제되었을 때를 대비
-	}
-
-	CurrentWeapon = GetWorld()->SpawnActorDeferred<AWeaponActor>(
-		AWeaponActor::StaticClass(), FTransform::Identity, this, this);	// 스폰 시작
-	if (CurrentWeapon.IsValid())
-	{
-		CurrentWeapon->InitializeWeapon(CurrentWeaponData);
-		UGameplayStatics::FinishSpawningActor(CurrentWeapon.Get(), FTransform::Identity);	// 스폰 완료(=BeginPlay까지 실행)
-		CurrentWeapon->EquipToTarget(this);
-	}
 }

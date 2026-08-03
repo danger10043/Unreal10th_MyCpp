@@ -22,6 +22,17 @@ void AItemHealth::Tick(float DeltaTime)
     Super::Tick(DeltaTime);
 }
 
+void AItemHealth::BeginPlay()
+{
+    Super::BeginPlay();
+    MeshMID = ItemStaticMesh->CreateDynamicMaterialInstance(0);
+    
+    if (!MeshMID)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("%s의 Dynamic Material Instance 생성에 실패했습니다."), *this->GetName());
+    }
+}
+
 float AItemHealth::GetHealth() const
 {
     return Health;
@@ -48,8 +59,10 @@ void AItemHealth::PickUpItem(AActor* InActor)
     {
         UWorld* World = GetWorld();
         FTimerManager& TimerManager = World->GetTimerManager();
-        UStatComponent* StatComponent = Player->GetStatComponent()
-            ;
+        UStatComponent* StatComponent = Player->GetStatComponent();
+
+        TimerManager.ClearTimer(ItemMeshBrightnessDecreaseTimerHandle);
+        
         TimerManager.SetTimer(
             HealthTickTimer,
             FTimerDelegate::CreateLambda(
@@ -67,6 +80,39 @@ void AItemHealth::PickUpItem(AActor* InActor)
             HealthTickInterval,
             true
         );
+
+        TimerManager.SetTimer(
+            ItemMeshRotationTimerHandle,
+            FTimerDelegate::CreateLambda(
+                [&]()
+                {
+                    ItemStaticMesh->AddRelativeRotation(FRotator(0.0f, 4.5f, 0.0f));
+                }
+            ),
+            0.01f,
+            true
+        );
+
+        TimerManager.SetTimer(
+            ItemMeshBrightnessIncreaseTimerHandle,
+            FTimerDelegate::CreateLambda(
+                [&]()
+                {
+                    CurrentMeshBright += MeshBrightChangeAmount;
+                    if (MeshMID)
+                    {
+                        MeshMID->SetScalarParameterValue(MIDBrightnessName, CurrentMeshBright);
+                    }
+
+                    if (CurrentMeshBright >= MaxMeshBright)
+                    {
+                        TimerManager.ClearTimer(ItemMeshBrightnessIncreaseTimerHandle);
+                    }
+                }
+            ),
+            0.03f,
+            true
+        );
     }
 }
 
@@ -75,6 +121,29 @@ void AItemHealth::pickDownItem(AActor* InActor)
     UWorld* World = GetWorld();
     FTimerManager& TimerManager = World->GetTimerManager();
     TimerManager.ClearTimer(HealthTickTimer);
+    TimerManager.ClearTimer(ItemMeshBrightnessIncreaseTimerHandle);
+    TimerManager.ClearTimer(ItemMeshRotationTimerHandle);
+
+    TimerManager.SetTimer(
+        ItemMeshBrightnessDecreaseTimerHandle,
+        FTimerDelegate::CreateLambda(
+            [&]()
+            {
+                CurrentMeshBright -= MeshBrightChangeAmount;
+                if (MeshMID)
+                {
+                    MeshMID->SetScalarParameterValue(MIDBrightnessName, CurrentMeshBright);
+                }
+
+                if (CurrentMeshBright <= MinMeshBright)
+                {
+                    TimerManager.ClearTimer(ItemMeshBrightnessDecreaseTimerHandle);
+                }
+            }
+        ),
+        0.03f,
+        true
+    );
 }
 
 

@@ -4,11 +4,16 @@
 #include "Weapon/WeaponActor.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/Character.h"
+#include "NiagaraComponent.h"
+#include "NiagaraSystem.h"
+#include "NiagaraFunctionLibrary.h"
+#include "Kismet/GameplayStatics.h"
+
 #include "Unreal10th_MyCpp/Unreal10th_MyCpp.h"
 #include "Interface/StatComponentInterface.h"
 #include "Data/WeaponDataAsset.h"
 #include "Player/ActionPlayer.h"
-#include "Kismet/GameplayStatics.h"
+#include "Component/WeaponComponent.h"
 
 // Sets default values
 AWeaponActor::AWeaponActor()
@@ -16,7 +21,7 @@ AWeaponActor::AWeaponActor()
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
-	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RootMesh"));
+	Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("RootMesh"));
 	SetRootComponent(Mesh);
 	//Mesh->SetCollisionProfileName(TEXT("NoCollision") // 프로파일을 이용해 한번에 세팅(실제 적용되는 타이밍은 조금 뒤)
 
@@ -36,6 +41,10 @@ AWeaponActor::AWeaponActor()
 	HitArea->SetCollisionResponseToChannel(ECC_Weapon, ECollisionResponse::ECR_Ignore);
 	HitArea->SetCollisionResponseToChannel(ECC_Player, ECollisionResponse::ECR_Ignore);
 	HitArea->SetCollisionResponseToChannel(ECC_Enemy, ECollisionResponse::ECR_Overlap);
+
+	TrailVFX = CreateDefaultSubobject<UNiagaraComponent>(TEXT("Blade Trail"));
+	TrailVFX->SetupAttachment(Mesh);
+
 }
 
 // Called when the game starts or when spawned
@@ -67,11 +76,16 @@ void AWeaponActor::EquipToTarget(AActor* InOwner)
 		}
 
 
-		AttachToComponent(OwnerCharacter->GetMesh(), AttachRules, AttachSocketName);
+		AttachToComponent(OwnerCharacter->GetMesh(), AttachRules, WeaponData->AttachSocketName);
 		HitArea->IgnoreActorWhenMoving(OwnerCharacter.Get(), true); // 만약을 대비한 것
 
-		IWeaponUserInterface* WeaponUser = Cast<IWeaponUserInterface>(OwnerCharacter);
-		WeaponUser->GetWeaponAttackStateChangedDelegate().BindUFunction(this, TEXT("AttackEnable"));
+		if (IWeaponUserInterface* WeaponUser = Cast<IWeaponUserInterface>(OwnerCharacter))
+		{
+			if (UWeaponComponent* WeaponComponent = WeaponUser->GetWeaponComponent())
+			{
+				WeaponComponent->OnWeaponAttackStateChanged.BindUFunction(this, TEXT("AttackEnable"));
+			}
+		}
 	}
 }
 
@@ -99,7 +113,7 @@ void AWeaponActor::DropWeapon()
 				Mesh->SetCollisionResponseToChannel(ECC_Player, ECollisionResponse::ECR_Block);
 			}
 		),
-		PhysicsDelay,
+		WeaponData->PhysicsDelay,
 		false
 	);
 
@@ -113,7 +127,7 @@ void AWeaponActor::DropWeapon()
 	Mesh->AddAngularImpulseInDegrees(AngularImpulse, NAME_None, true);
 
 	// DropLifeSpan초 후에 이 액터 제거하기
-	SetLifeSpan(DropLifeSpan);
+	SetLifeSpan(WeaponData->DropLifeSpan);
 
 	OwnerCharacter = nullptr;
 }
@@ -127,24 +141,49 @@ void AWeaponActor::OnHitAreaBeginOverlap(
 	bool					bFromSweep,
 	const FHitResult& InSweepResult)
 {
-	UE_LOG(LogTemp, Log, TEXT("오버랩 된 대상 : %s"), *InOtherComp->GetName());
-
-	if (IStatComponentInterface* VictimActor = Cast<IStatComponentInterface>(InOtherActor))
+	if (InOtherActor && !HitActors.Contains(InOtherActor))
 	{
-		UGameplayStatics::ApplyDamage(InOtherActor, WeaponDamage, OwnerCharacter->GetController(), OwnerCharacter.Get(), nullptr);
+		if (HitVFX)
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+				GetWorld(),
+				HitVFX,
+				InOtherActor->GetActorLocation(),
+				InSweepResult.ImpactNormal.Rotation()
+			);
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("Attack - [ %s 가 %s 를 공격 ]"), *OwnerCharacter->GetName(), *InOtherActor->GetName());
+		HitActors.Add(InOtherActor);
+
+		if (InOtherActor->GetClass()->ImplementsInterface(UStatComponentInterface::StaticClass()))
+		{
+			UGameplayStatics::ApplyDamage(InOtherActor, WeaponData->AttackPower, OwnerCharacter->GetController(), OwnerCharacter.Get(), nullptr);
+		}
+		
 	}
 }
 
+
 void AWeaponActor::InitializeWeapon(UWeaponDataAsset* InData)
 {
+	if (!InData) return;
+
 	WeaponData = InData;
-	Mesh->SetStaticMesh(WeaponData->Mesh.Get());
-	AttachSocketName = WeaponData->AttachSocketName;
-	HitArea->SetCapsuleHalfHeight(WeaponData->HitAreaHalfHeight);
-	HitArea->SetCapsuleRadius(WeaponData->HitAreaRadius);
-	HitArea->SetRelativeLocation(WeaponData->HitAreaLocationOffset);
-	WeaponDamage = WeaponData->AttackPower;
-	AttackCount = WeaponData->AttackCount;
+
+	if (WeaponData->IsLoadCompleted())
+	{
+		Mesh->SetSkeletalMesh(WeaponData->Mesh.Get());
+		Mesh->SetRelativeScale3D(WeaponData->WeaponScale);
+		TrailVFX->SetAsset(WeaponData->TrailVFX.Get());
+		HitVFX = WeaponData->HitVFX.Get();
+		HitArea->SetCapsuleHalfHeight(WeaponData->HitAreaHalfHeight);
+		HitArea->SetCapsuleRadius(WeaponData->HitAreaRadius);
+		HitArea->SetRelativeLocation(WeaponData->HitAreaLocationOffset);
+		HitArea->SetRelativeScale3D(WeaponData->WeaponScale);
+		AttackCount = WeaponData->AttackCount;
+		TrailVFX->Deactivate();
+	}
 }
 
 void AWeaponActor::AttackEnable(bool bEnable)
@@ -153,12 +192,40 @@ void AWeaponActor::AttackEnable(bool bEnable)
 	{
 		HitArea->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		UE_LOG(LogTemp, Log, TEXT("Attack 활성화 됨"));
+		TrailVFX->Activate();
 	}
 	else
 	{
 		HitArea->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		UE_LOG(LogTemp, Log, TEXT("Attack 비활성화 됨"));
+		HitActors.Empty();
+		TrailVFX->Deactivate();
 	}
+}
+
+UWeaponDataAsset* AWeaponActor::GetWeaponData() const
+{
+	return WeaponData;
+}
+
+int32 AWeaponActor::GetAttackCount() const
+{
+	return AttackCount;
+}
+
+void AWeaponActor::SetAttackCount(int32 InCount)
+{
+	AttackCount = InCount;
+}
+
+void AWeaponActor::IncreaseCount()
+{
+	AttackCount++;
+}
+
+void AWeaponActor::DecreaseCount()
+{
+	AttackCount--;
 }
 
 // Called every frame

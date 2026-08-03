@@ -21,7 +21,7 @@ AItemWeapon::AItemWeapon()
 void AItemWeapon::BeginPlay()
 {
     Super::BeginPlay();
-    ItemMesh->SetRelativeRotation(FRotator(45.0f, 0.0f, 0.0f));
+    ItemSkeletalMesh->SetRelativeRotation(FRotator(45.0f, 0.0f, 0.0f));
 }
 
 void AItemWeapon::Tick(float DeltaTime)
@@ -35,9 +35,9 @@ void AItemWeapon::OnConstruction(const FTransform& Transform)
 
     if (WeaponData)
     {
-        UStaticMesh* StaticMeshData = WeaponData->Mesh.LoadSynchronous();
+        USkeletalMesh* SkeletalMeshData = WeaponData->Mesh.LoadSynchronous();
         {
-            ItemMesh->SetStaticMesh(StaticMeshData);
+            ItemSkeletalMesh->SetSkeletalMesh(SkeletalMeshData);
         }
     }
 }
@@ -51,9 +51,9 @@ void AItemWeapon::PickUpItem(AActor* InActor)
     Super::PickUpItem(InActor);
 
     SphereCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    ItemMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    ItemSkeletalMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-    PickupStartLocation = ItemMesh->GetComponentLocation();
+    PickupStartLocation = ItemSkeletalMesh->GetComponentLocation();
     PickupElapsedTime = 0.0f;
 
     GetWorldTimerManager().SetTimer(
@@ -75,13 +75,14 @@ void AItemWeapon::PickUpItem(AActor* InActor)
                 FVector Goal = InActor->GetActorLocation();
                 FVector NewLocation = FMath::Lerp(PickupStartLocation, Goal, DistanceAlpha);
 
-                ItemMesh->SetWorldLocation(NewLocation);
+                ItemSkeletalMesh->SetWorldLocation(NewLocation);
+                MoveVFXtoSkeletalMesh();
 
                 float ScaleAlpha = ScaleCurve->GetFloatValue(Progress);
                 float NewScale = FMath::Lerp(1.0f, 0.0f, ScaleAlpha);
-                ItemMesh->SetRelativeScale3D(FVector(NewScale));
+                ItemSkeletalMesh->SetRelativeScale3D(FVector(NewScale));
 
-                ItemMesh->SetRelativeRotation(FRotator(45.0f, PickupElapsedTime * 1000, 0.0f));
+                ItemSkeletalMesh->SetRelativeRotation(FRotator(45.0f, PickupElapsedTime * 1000, 0.0f));
 
                 if (Progress >= 1.0f)
                 {

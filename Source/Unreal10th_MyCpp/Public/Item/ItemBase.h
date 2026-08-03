@@ -43,12 +43,21 @@ protected:
 	TObjectPtr<USphereComponent> SphereCollision = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	TObjectPtr<UStaticMeshComponent> ItemMesh = nullptr;
+	TObjectPtr<UStaticMeshComponent> ItemStaticMesh = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TObjectPtr<USkeletalMeshComponent> ItemSkeletalMesh = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UNiagaraComponent> NiagaraComponent = nullptr;
 
-	FVector InitialItemMeshLocation = FVector::Zero();
+	FVector InitialMeshLocation = FVector::Zero();
 
 	float ElapsedTime = 0.0f;
+	
+	UFUNCTION(BlueprintCallable)
+	void MoveVFXtoStaticMesh();
+
+	UFUNCTION(BlueprintCallable)
+	void MoveVFXtoSkeletalMesh();
 };

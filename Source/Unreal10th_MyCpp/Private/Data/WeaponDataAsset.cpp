@@ -3,17 +3,37 @@
 
 #include "Data/WeaponDataAsset.h"
 #include "Engine/AssetManager.h"
+#include "NiagaraSystem.h"
 
 void UWeaponDataAsset::RequestDataLoad(FStreamableDelegate InDelegate)
 {
-	TArray<FSoftObjectPath> TargetsToLoad;
-	TargetsToLoad.Add(Mesh.ToSoftObjectPath());
+    TArray<FSoftObjectPath> TargetsToLoad;
 
-	FStreamableManager& Streamable = UAssetManager::GetStreamableManager();
-	AsyncLoadHandle = Streamable.RequestAsyncLoad(TargetsToLoad, MoveTemp(InDelegate));
+    if (!Mesh.IsNull())
+    {
+        TargetsToLoad.Add(Mesh.ToSoftObjectPath());
+    }
+
+    if (!TrailVFX.IsNull())
+    {
+        TargetsToLoad.Add(TrailVFX.ToSoftObjectPath());
+    }
+
+    if (!HitVFX.IsNull())
+    {
+        TargetsToLoad.Add(HitVFX.ToSoftObjectPath());
+    }
+
+    FStreamableManager& Streamable = UAssetManager::GetStreamableManager();
+    AsyncLoadHandle = Streamable.RequestAsyncLoad(
+        TargetsToLoad,
+        MoveTemp(InDelegate)
+    );
 }
 
 bool UWeaponDataAsset::IsLoadCompleted() const
 {
-	return AsyncLoadHandle.IsValid() && AsyncLoadHandle.Get()->HasLoadCompleted();
+	return AsyncLoadHandle.IsValid() && AsyncLoadHandle.Get()->HasLoadCompleted() && Mesh.IsValid()
+        && TrailVFX.IsValid()
+        && HitVFX.IsValid();
 }

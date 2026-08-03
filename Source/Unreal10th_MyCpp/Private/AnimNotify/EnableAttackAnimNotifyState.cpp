@@ -5,24 +5,29 @@
 #include "GameFramework/Character.h"
 #include "Player/ActionPlayer.h"
 #include "Interface/WeaponUserInterface.h"
+#include "Component/WeaponComponent.h"
 
 void UEnableAttackAnimNotifyState::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {
 	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
 
-	OwnerCharacter = Cast<IWeaponUserInterface>(MeshComp->GetOwner());
-	if (OwnerCharacter)
+	if (IWeaponUserInterface* WeaponUser = Cast<IWeaponUserInterface>(MeshComp->GetOwner()))
 	{
-		OwnerCharacter->OnWeaponAttackState(true);
+		if (UWeaponComponent* WeaponComponent = WeaponUser->GetWeaponComponent())
+		{
+			WeaponComponent->OnWeaponAttackStateChanged.ExecuteIfBound(true);
+		}
 	}
 }
 
 void UEnableAttackAnimNotifyState::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
-	if (OwnerCharacter)
+	if (IWeaponUserInterface* WeaponUser = Cast<IWeaponUserInterface>(MeshComp->GetOwner()))
 	{
-		OwnerCharacter->OnWeaponAttackState(false);
-		OwnerCharacter = nullptr;
+		if (UWeaponComponent* WeaponComponent = WeaponUser->GetWeaponComponent())
+		{
+			WeaponComponent->OnWeaponAttackStateChanged.ExecuteIfBound(false);
+		}
 	}
 
 	Super::NotifyEnd(MeshComp, Animation, EventReference);

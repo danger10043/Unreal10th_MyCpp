@@ -21,12 +21,27 @@ protected:
 
 	virtual void Tick(float DeltaTime) override;
 
+	virtual void BeginPlay() override;
+
 	// Health Values
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float Health = 30.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float HealthTickInterval = 0.2f;
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
+	UMaterialInstanceDynamic* MeshMID = nullptr;
+
+	float CurrentMeshBright = 3.0f;
+	float MeshBrightChangeAmount = 3.0f;
+
+	float MaxMeshBright = 150.0f;
+	float MinMeshBright = 3.0f;
+
+	FName MIDColorName = TEXT("Color");
+	FName MIDBrightnessName = TEXT("Brightness");
+
 
 public:
 	UFUNCTION(BlueprintCallable)
@@ -50,5 +65,11 @@ public:
 
 	// Health Timer
 	FTimerHandle HealthTickTimer;
+
+	FTimerHandle ItemMeshBrightnessIncreaseTimerHandle;
+
+	FTimerHandle ItemMeshBrightnessDecreaseTimerHandle;
+
+	FTimerHandle ItemMeshRotationTimerHandle;
 
 };

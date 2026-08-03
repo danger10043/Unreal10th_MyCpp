@@ -34,7 +34,4 @@ protected:
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FName NextSectionName;
-
-private:
-	TWeakObjectPtr<AActionPlayer> OwnerCharacter = nullptr;
 };

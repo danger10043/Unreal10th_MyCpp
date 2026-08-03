@@ -13,8 +13,6 @@
 class UWidgetComponent;
 class UStatComponent;
 class AActionPlayer;
-class UWeaponDataAsset;
-class AWeaponActor;
 
 UCLASS()
 class UNREAL10TH_MYCPP_API ATestEnemy : 
@@ -54,17 +52,8 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TWeakObjectPtr<AActionPlayer> TargetPlayer = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TObjectPtr<UWeaponDataAsset> WeaponData = nullptr;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item")
-	TWeakObjectPtr<AWeaponActor> CurrentWeapon = nullptr;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item")
-	TObjectPtr<UWeaponDataAsset> CurrentWeaponData = nullptr;
-
-	UFUNCTION(BlueprintCallable)
-	void SpawnWeaponActor();
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TObjectPtr<UWeaponComponent> WeaponComponent = nullptr;
 
 	virtual void EquipWeapon_Implementation(UWeaponDataAsset* InWeaponData) override;
 
@@ -77,10 +66,9 @@ public:
 	) override;
 
 public:
-	virtual void OnWeaponAttackState(bool bEnable) override;
-
-	virtual FOnWeaponAttackStateChanged& GetWeaponAttackStateChangedDelegate() override {
-		return OnOnWeaponAttackStateChanged;
+	virtual UWeaponComponent* GetWeaponComponent() const override
+	{
+		return WeaponComponent;
 	};
 
 	UFUNCTION(BlueprintCallable)
@@ -89,16 +77,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TObjectPtr<UAnimInstance> AnimInstance = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TObjectPtr<UAnimMontage> AttackMontage = nullptr;
-
 	FTimerHandle AttackCooldownTimer;
 
 	FVector InitialLocation = FVector(0.0f, 0.0f, 0.0f);
 	FRotator InitialRotation = FRotator(0.0f, 0.0f, 0.0f);
-
-private:
-
-	FOnWeaponAttackStateChanged OnOnWeaponAttackStateChanged;
 
 };

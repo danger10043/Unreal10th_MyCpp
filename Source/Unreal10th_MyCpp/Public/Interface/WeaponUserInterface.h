@@ -6,7 +6,8 @@
 #include "UObject/Interface.h"
 #include "WeaponUserInterface.generated.h"
 
-class WeaponDataAsset;
+class UWeaponDataAsset;
+class UWeaponComponent;
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnWeaponAttackStateChanged, bool, bEnable);
 
@@ -26,9 +27,7 @@ class IWeaponUserInterface
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
-	virtual void OnWeaponAttackState(bool bEnable) = 0;
-
-	virtual FOnWeaponAttackStateChanged& GetWeaponAttackStateChangedDelegate() = 0;
+	virtual UWeaponComponent* GetWeaponComponent() const = 0;
 
 	UFUNCTION(BlueprintNativeEvent)
 	void EquipWeapon(UWeaponDataAsset* InWeaponData);

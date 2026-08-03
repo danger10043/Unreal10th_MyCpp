@@ -9,6 +9,8 @@
 
 class UCapsuleComponent;
 class UWeaponDataAsset;
+class UNiagaraComponent;
+class UNiagaraSystem;
 
 UCLASS()
 class UNREAL10TH_MYCPP_API AWeaponActor : public AActor
@@ -42,40 +44,43 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void InitializeWeapon(UWeaponDataAsset* InData);
 
-public:
 	UFUNCTION(BlueprintCallable)
 	void AttackEnable(bool bEnable);
 
+	UWeaponDataAsset* GetWeaponData() const;
+
+	int32 GetAttackCount() const;
+
+	void SetAttackCount(int32 InCount);
+
+	void IncreaseCount();
+
+	void DecreaseCount();
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-public:
+protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	TObjectPtr<UStaticMeshComponent> Mesh = nullptr;
+	TObjectPtr<USkeletalMeshComponent> Mesh = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UCapsuleComponent> HitArea = nullptr;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	FName AttachSocketName = TEXT("hand_rSocket");
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float WeaponDamage = 0.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	int32 AttackCount = 0;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UWeaponDataAsset> WeaponData;
 
-	// 무기가 드랍 된 후 사라질 때까지의 시간
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float DropLifeSpan = 10.0f;
+	TObjectPtr<UNiagaraComponent> TrailVFX = nullptr;
 
-	// 드랍 직후에 플레이어와 물리 상호작용이 안되는 시간
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float PhysicsDelay = 0.8f;
+	TObjectPtr<UNiagaraSystem> HitVFX = nullptr;
+
+	// 사용 가능한 무기 횟수
+	int32 AttackCount = 0;
+	
+	// 한 번의 공격에서 공격한 액터들의 목록(공격 이후 초기화)
+	TSet<AActor*> HitActors;
 
 private:
 	// 무기를 장비하고 있는 캐릭터

@@ -1,3 +1,4 @@
+
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
@@ -21,9 +22,7 @@ class UStatComponent;
 class UWidgetComponent;
 class UComboAnimNotifyState;
 class UWeaponDataAsset;
-class AWeaponActor;
-
-DECLARE_DYNAMIC_DELEGATE_OneParam(FOnWeaponAttackStateChange, float, bEnable);
+class UWeaponComponent;
 
 UCLASS()
 class UNREAL10TH_MYCPP_API AActionPlayer : 
@@ -106,6 +105,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UWidgetComponent> StatUIComponent = nullptr;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TObjectPtr<UWeaponComponent> WeaponComponent = nullptr;
+
 	// Player Inputs
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
@@ -134,11 +136,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TObjectPtr<UAnimMontage> RollMontage = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TObjectPtr<UAnimMontage> AttackMontage = nullptr;
-
-
-
 	// StatComponent Getter Function
 public:
 	UStatComponent* GetStatComponent() const;
@@ -166,27 +163,10 @@ protected:
 
 	// WeaponUser Interface Function
 public:
-	virtual void OnWeaponAttackState(bool bEnable) override;
-
-	FOnWeaponAttackStateChanged OnOnWeaponAttackStateChanged;
-
-	virtual FOnWeaponAttackStateChanged& GetWeaponAttackStateChangedDelegate() override {
-		return OnOnWeaponAttackStateChanged;
+	virtual UWeaponComponent* GetWeaponComponent() const override
+	{
+		return WeaponComponent;
 	};
 
 	virtual void EquipWeapon_Implementation(UWeaponDataAsset* InWeaponData) override;
-
-public:
-	// 현재 장비 중인 무기
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item")
-	TWeakObjectPtr<AWeaponActor> CurrentWeapon = nullptr;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item")
-	TObjectPtr<UWeaponDataAsset> CurrentWeaponData = nullptr;
-
-	UFUNCTION(BlueprintCallable)
-	void SpawnWeaponActor();
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
-	TObjectPtr<UWeaponDataAsset> BasicWeaponData = nullptr;
 };
