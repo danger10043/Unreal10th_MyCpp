@@ -12,6 +12,7 @@
  */
 class UStaticMesh;
 class UNiagaraSystem;
+class UPoolDataAsset;
 
 UCLASS()
 class UNREAL10TH_MYCPP_API UWeaponDataAsset : public UPrimaryDataAsset
@@ -34,6 +35,18 @@ public:
 	// 무기의 Hit VFX
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Appearance")
 	TSoftObjectPtr<UNiagaraSystem> HitVFX;
+
+	// 무기의 Damage Popup Actor Pool Data
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Appearance")
+	TObjectPtr<UPoolDataAsset> DamagePopupPoolData;
+
+	// 무기 Damage Popup Actor의 글자 색상
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Appearance")
+	FLinearColor DamageTextColor = FLinearColor::White;
+
+	// 무기 Damage Popup Actor의 글자 테두리 색상
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Appearance")
+	FLinearColor DamageTextOutlineColor = FLinearColor::Black;
 
 	// 무기가 Attach 될 소켓
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Appearance")

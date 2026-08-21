@@ -10,6 +10,7 @@
 class UStaticMeshComponent;
 class USphereComponent;
 class UWeaponDataAsset;
+class UCurveFloat;
 
 UCLASS()
 class UNREAL10TH_MYCPP_API AItemWeapon : public AItemBase
@@ -29,6 +30,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TObjectPtr<UWeaponDataAsset> WeaponData = nullptr;
+
+	virtual void InitializeFromItemData(UItemDataAsset* InItemData) override;
 
 	virtual void PickUpItem(AActor* InActor) override;
 

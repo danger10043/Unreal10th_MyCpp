@@ -9,6 +9,7 @@
 #include "Component/StatComponent.h"
 #include "Interface/StatComponentInterface.h"
 #include "Interface/HealthInterface.h"
+#include "Data/ItemDataAsset.h"
 
 // Sets default values
 AItemHealth::AItemHealth()
@@ -31,6 +32,19 @@ void AItemHealth::BeginPlay()
     {
         UE_LOG(LogTemp, Warning, TEXT("%s의 Dynamic Material Instance 생성에 실패했습니다."), *this->GetName());
     }
+}
+
+void AItemHealth::InitializeFromItemData(UItemDataAsset* InItemData)
+{
+    Super::InitializeFromItemData(InItemData);
+
+    if (!IsValid(InItemData))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ItemHealth::InitializeFromItemData - ItemData 가 유효하지 않습니다."));
+        return;
+    }
+
+    Health = InItemData->StatAmount;
 }
 
 float AItemHealth::GetHealth() const
@@ -66,10 +80,11 @@ void AItemHealth::PickUpItem(AActor* InActor)
         TimerManager.SetTimer(
             HealthTickTimer,
             FTimerDelegate::CreateLambda(
-                [this, StatComponent]()
+                [this, StatComponent, InActor]()
                 {
                     if (Health > 0.0f) {
                         StatComponent->IHealthInterface::Execute_HealHealth(StatComponent, Health);
+                        SpawnPickupNiagaraEffect(InActor);
                     }
                     else {
                         StatComponent->IHealthInterface::Execute_DamageHealth(StatComponent, -Health);

@@ -12,8 +12,11 @@
 #include "Unreal10th_MyCpp/Unreal10th_MyCpp.h"
 #include "Interface/StatComponentInterface.h"
 #include "Data/WeaponDataAsset.h"
+#include "Data/PoolDataAsset.h"
 #include "Player/ActionPlayer.h"
 #include "Component/WeaponComponent.h"
+#include "Pool/DamagePopupActor.h"
+#include "Framework/ObjectPoolSubSystem.h"
 
 // Sets default values
 AWeaponActor::AWeaponActor()
@@ -36,8 +39,9 @@ AWeaponActor::AWeaponActor()
 	HitArea->SetCapsuleHalfHeight(30.0f);
 	HitArea->SetCapsuleRadius(10.0f);
 	HitArea->SetRelativeLocation(FVector(0.0f, 0.0f, 160.0f));
-	HitArea->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	HitArea->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	HitArea->SetCollisionObjectType(ECC_Weapon);
+	HitArea->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 	HitArea->SetCollisionResponseToChannel(ECC_Weapon, ECollisionResponse::ECR_Ignore);
 	HitArea->SetCollisionResponseToChannel(ECC_Player, ECollisionResponse::ECR_Ignore);
 	HitArea->SetCollisionResponseToChannel(ECC_Enemy, ECollisionResponse::ECR_Overlap);
@@ -52,6 +56,24 @@ void AWeaponActor::BeginPlay()
 {
 	Super::BeginPlay();
 	HitArea->OnComponentBeginOverlap.AddDynamic(this, &AWeaponActor::OnHitAreaBeginOverlap);
+
+	if (WeaponData)
+	{
+		if (UObjectPoolSubSystem* Pool = GetWorld()->GetSubsystem<UObjectPoolSubSystem>())
+		{
+			if (WeaponData->DamagePopupPoolData)
+			{
+				Pool->Prewarm(
+					WeaponData->DamagePopupPoolData->PooledActorClass,
+					WeaponData->DamagePopupPoolData->InitialPoolSize
+				);
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("AWeaponActor::BeginPlay - WeaponData가 존재하지 않습니다."));
+	}
 }
 
 void AWeaponActor::EquipToTarget(AActor* InOwner)
@@ -61,7 +83,7 @@ void AWeaponActor::EquipToTarget(AActor* InOwner)
 	FAttachmentTransformRules AttachRules(
 		EAttachmentRule::SnapToTarget,
 		EAttachmentRule::SnapToTarget,
-		EAttachmentRule::SnapToTarget,
+		EAttachmentRule::KeepWorld,
 		true
 	);
 
@@ -107,7 +129,8 @@ void AWeaponActor::DropWeapon()
 	FTimerManager& TimerManager = GetWorld()->GetTimerManager();
 	TimerManager.SetTimer(
 		PhysicsDelayTimerHandle,
-		FTimerDelegate::CreateLambda(
+		FTimerDelegate::CreateWeakLambda(
+			this,
 			[this]()
 			{
 				Mesh->SetCollisionResponseToChannel(ECC_Player, ECollisionResponse::ECR_Block);
@@ -118,18 +141,25 @@ void AWeaponActor::DropWeapon()
 	);
 
 	// 뒤로 던지기
-	FVector BackwardDirection = -OwnerCharacter->GetActorForwardVector();
-	FVector ThrowDirection = BackwardDirection * 300.0f + FVector::UpVector * 500.0f;
-	Mesh->AddImpulse(ThrowDirection, NAME_None, true);
-	FVector AngularImpulse = FVector(
-		FMath::RandRange(-200.0f, 200.0f)
-	) + GetActorForwardVector() * 1000.0f;
-	Mesh->AddAngularImpulseInDegrees(AngularImpulse, NAME_None, true);
+	if (OwnerCharacter.IsValid())
+	{
+		FVector BackwardDirection = -OwnerCharacter->GetActorForwardVector();
+		FVector ThrowDirection = BackwardDirection * 300.0f + FVector::UpVector * 500.0f;
+		Mesh->AddImpulse(ThrowDirection, NAME_None, true);
+		FVector AngularImpulse = FVector(
+			FMath::RandRange(-200.0f, 200.0f)
+		) + GetActorForwardVector() * 1000.0f;
+		Mesh->AddAngularImpulseInDegrees(AngularImpulse, NAME_None, true);
 
-	// DropLifeSpan초 후에 이 액터 제거하기
-	SetLifeSpan(WeaponData->DropLifeSpan);
+		// DropLifeSpan초 후에 이 액터 제거하기
+		SetLifeSpan(WeaponData->DropLifeSpan);
 
-	OwnerCharacter = nullptr;
+		OwnerCharacter = nullptr;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("WeaponActor::DropWeapon - OwnerCharacter가 존재하지 않습니다."));
+	}
 }
 
 
@@ -141,6 +171,8 @@ void AWeaponActor::OnHitAreaBeginOverlap(
 	bool					bFromSweep,
 	const FHitResult& InSweepResult)
 {
+	if (!IsValid(InOtherActor) || !OwnerCharacter.IsValid() || !IsValid(WeaponData)) return;
+
 	if (InOtherActor && !HitActors.Contains(InOtherActor))
 	{
 		if (HitVFX)
@@ -155,6 +187,30 @@ void AWeaponActor::OnHitAreaBeginOverlap(
 
 		UE_LOG(LogTemp, Log, TEXT("Attack - [ %s 가 %s 를 공격 ]"), *OwnerCharacter->GetName(), *InOtherActor->GetName());
 		HitActors.Add(InOtherActor);
+
+		if (UObjectPoolSubSystem* Pool = GetWorld()->GetSubsystem<UObjectPoolSubSystem>())
+		{
+			const FVector PopupLocation = InOtherActor->GetActorLocation() + FVector(FMath::RandRange(-25.0f, 25.0f), FMath::RandRange(-25.0f, 25.0f), 110.0f);
+
+			if (WeaponData->DamagePopupPoolData)
+			{
+				AActor* PooledActor = Pool->Acquire(
+					WeaponData->DamagePopupPoolData,
+					FTransform(PopupLocation),
+					OwnerCharacter.Get(),
+					OwnerCharacter.Get()
+				);
+
+				if (ADamagePopupActor* Popup = Cast<ADamagePopupActor>(PooledActor))
+				{
+					Popup->ShowDamage(
+						WeaponData->AttackPower,
+						WeaponData->DamageTextColor,
+						WeaponData->DamageTextOutlineColor
+					);
+				}
+			}
+		}
 
 		if (InOtherActor->GetClass()->ImplementsInterface(UStatComponentInterface::StaticClass()))
 		{
@@ -172,7 +228,7 @@ void AWeaponActor::InitializeWeapon(UWeaponDataAsset* InData)
 	WeaponData = InData;
 
 	if (WeaponData->IsLoadCompleted())
-	{
+	{	
 		Mesh->SetSkeletalMesh(WeaponData->Mesh.Get());
 		Mesh->SetRelativeScale3D(WeaponData->WeaponScale);
 		TrailVFX->SetAsset(WeaponData->TrailVFX.Get());
@@ -180,9 +236,10 @@ void AWeaponActor::InitializeWeapon(UWeaponDataAsset* InData)
 		HitArea->SetCapsuleHalfHeight(WeaponData->HitAreaHalfHeight);
 		HitArea->SetCapsuleRadius(WeaponData->HitAreaRadius);
 		HitArea->SetRelativeLocation(WeaponData->HitAreaLocationOffset);
-		HitArea->SetRelativeScale3D(WeaponData->WeaponScale);
 		AttackCount = WeaponData->AttackCount;
 		TrailVFX->Deactivate();
+
+		AttackEnable(false);
 	}
 }
 
@@ -191,13 +248,13 @@ void AWeaponActor::AttackEnable(bool bEnable)
 	if (bEnable)
 	{
 		HitArea->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		UE_LOG(LogTemp, Log, TEXT("Attack 활성화 됨"));
+		//UE_LOG(LogTemp, Log, TEXT("Attack 활성화 됨"));
 		TrailVFX->Activate();
 	}
 	else
 	{
 		HitArea->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		UE_LOG(LogTemp, Log, TEXT("Attack 비활성화 됨"));
+		//UE_LOG(LogTemp, Log, TEXT("Attack 비활성화 됨"));
 		HitActors.Empty();
 		TrailVFX->Deactivate();
 	}

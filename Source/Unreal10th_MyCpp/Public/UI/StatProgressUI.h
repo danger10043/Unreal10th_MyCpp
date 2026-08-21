@@ -27,10 +27,10 @@ public:
 public:
 	virtual void NativeConstruct() override;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (BindWidget))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UStatProgressBar> HealthProgressBar = nullptr;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (BindWidget))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (BindWidgetOptional))
 	TObjectPtr<UStatProgressBar> StaminaProgressBar = nullptr;
 
 public:

@@ -97,6 +97,11 @@ void UWeaponComponent::SpawnWeaponActor()
         GetOwner(),
         InstigatorPawn);
 
+    if (!CurrentWeapon.IsValid())
+    {
+        UE_LOG(LogTemp, Error, TEXT("WeaponActor Spawn 실패"));
+        return;
+    }
     CurrentWeapon->InitializeWeapon(CurrentWeaponData);
     UGameplayStatics::FinishSpawningActor(CurrentWeapon.Get(), FTransform::Identity);
     CurrentWeapon->EquipToTarget(GetOwner());

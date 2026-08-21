@@ -44,6 +44,8 @@ protected:
 
 
 public:
+	virtual void InitializeFromItemData(UItemDataAsset* InItemData) override;
+
 	UFUNCTION(BlueprintCallable)
 	float GetHealth() const;
 

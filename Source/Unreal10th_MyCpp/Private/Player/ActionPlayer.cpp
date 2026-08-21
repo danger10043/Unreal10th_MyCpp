@@ -15,12 +15,15 @@
 #include "EnhancedInputSubsystems.h"
 #include "Kismet/GameplayStatics.h"
 #include "Unreal10th_MyCpp/Unreal10th_MyCpp.h"
-
-#include "UI/StatProgressUI.h"
-#include "UI/StatProgressBar.h"
+#include "UI/MainUIWidget.h"
+#include "UI/InventoryUIWidget.h"
 #include "Component/StatComponent.h"
 #include "Component/WeaponComponent.h"
+#include "Component/InventoryComponent.h"
 #include "AnimNotify/ComboAnimNotifyState.h"
+#include "Framework/ItemFactorySubsystem.h"
+#include "Item/ItemBase.h"
+#include "Data/ItemDataAsset.h"
 
 // Sets default values
 AActionPlayer::AActionPlayer()
@@ -36,10 +39,10 @@ AActionPlayer::AActionPlayer()
 	RightHandMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("RightMesh"));
 	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
-	StatUIComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("StatUI"));
 
 	StatComponent = CreateDefaultSubobject<UStatComponent>(TEXT("Stat"));
 	WeaponComponent = CreateDefaultSubobject<UWeaponComponent>(TEXT("Weapon"));
+	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("Inventory"));
 
 	HornMesh->SetupAttachment(GetMesh(), FName("LegendSocket"));
 	HeadMesh->SetupAttachment(GetMesh(), FName("headSocket"));
@@ -47,7 +50,6 @@ AActionPlayer::AActionPlayer()
 	RightHandMesh->SetupAttachment(GetMesh(), FName("hand_rSocket"));
 	SpringArmComponent->SetupAttachment(RootComponent);
 	CameraComponent->SetupAttachment(SpringArmComponent);
-	StatUIComponent->SetupAttachment(GetMesh());
 
 	bUseControllerRotationYaw = false; // 컨트롤러 움직일 때 같이 회전되는 것 방지
 	GetCharacterMovement()->bOrientRotationToMovement = true; // 캐릭터 이동방향으로 바라보게 만들기
@@ -85,22 +87,20 @@ void AActionPlayer::BeginPlay()
 		&AActionPlayer::OnRunEndFunction
 	);
 
-	if (UStatProgressUI* UI = Cast<UStatProgressUI>(StatUIComponent->GetUserWidgetObject()))
+	if (IsLocallyControlled() && MainUIClass)
 	{
-		UI->SetOwnerActor(this);
+		if (APlayerController* PC = Cast<APlayerController>(GetController()))
+		{
+			MainUI = CreateWidget<UMainUIWidget>(PC, MainUIClass);
 
-		UI->HealthProgressBar->SetProgressBarColor(FLinearColor(1.0f, 0.1f, 0.1f, 1.0f));
-		UI->StaminaProgressBar->SetProgressBarColor(FLinearColor(0.1f, 1.0f, 0.1f, 1.0f));
-
-		StatComponent->OnHealthChange.AddDynamic(UI, &UStatProgressUI::SetHealth);
-		StatComponent->OnStaminaChange.AddDynamic(UI, &UStatProgressUI::SetStamina);
-
-		float MaxHealth = StatComponent->IHealthInterface::Execute_GetMaxHealth(StatComponent);
-		float MaxStamina = StatComponent->IStaminaInterface::Execute_GetMaxStamina(StatComponent);
-		UI->SetHealth(MaxHealth, MaxHealth);
-		UI->SetStamina(MaxStamina, MaxStamina);
+			if (IsValid(MainUI))
+			{
+				MainUI->SetOwnerActor(this);
+				MainUI->SetInventoryComponent(InventoryComponent);
+				MainUI->AddToViewport();
+			}
+		}
 	}
-
 	// GetCurrentStamina(); : 실행했을 때 C++ 에 구현된 내용만 호출한다.
 	// IStaminaInterface::Execute_GetCurrentStamina(); : 실행했을 때 블루프린트 구현으로 호출한다.
 }
@@ -109,11 +109,6 @@ void AActionPlayer::BeginPlay()
 void AActionPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	//UE_LOG(LogTemp, Log, TEXT("현재 스태미나 : %3.1f / 현재 체력 : %3.1f"), IStaminaInterface::Execute_GetCurrentStamina(StatComponent), IP0723_HealthInterface::Execute_GetCurrentHealth(StatComponent));
-
-	FVector StatUIDirection = CameraComponent->GetComponentLocation() - StatUIComponent->GetComponentLocation();
-	FRotator StatUIRotation = StatUIDirection.Rotation();
-	StatUIComponent->SetWorldRotation(StatUIRotation);
 }
 
 // Called to bind functionality to input
@@ -128,6 +123,16 @@ void AActionPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		InputComponentValue->BindAction(IA_Run, ETriggerEvent::Completed, this, &AActionPlayer::RunEndFunction);
 		InputComponentValue->BindAction(IA_Roll, ETriggerEvent::Started, this, &AActionPlayer::RollFunction);
 		InputComponentValue->BindAction(IA_Attack, ETriggerEvent::Started, this, &AActionPlayer::AttackFunction);
+		InputComponentValue->BindAction(IA_Inventory, ETriggerEvent::Started, this, &AActionPlayer::InventoryFunction);
+		InputComponentValue->BindAction(IA_UseItem, ETriggerEvent::Started, this, &AActionPlayer::UseSelectedItemFunction);
+		InputComponentValue->BindAction(IA_ThrowItem, ETriggerEvent::Started, this, &AActionPlayer::ThrowSelectedItemFunction);
+
+		for (int32 SlotIndex = 0; SlotIndex < IA_SelectInventorySlots.Num(); ++SlotIndex)
+		{
+			if (!IsValid(IA_SelectInventorySlots[SlotIndex])) continue;
+
+			InputComponentValue->BindAction(IA_SelectInventorySlots[SlotIndex], ETriggerEvent::Started, this, &AActionPlayer::SelectInventorySlotFunction, SlotIndex);
+		}
 	}
 }
 
@@ -241,6 +246,77 @@ void AActionPlayer::AttackFunction(const FInputActionValue& InValue)
 	}
 }
 
+void AActionPlayer::InventoryFunction(const FInputActionValue& InValue)
+{
+	if (!IsValid(MainUI))
+	{
+		return;
+	}
+
+	MainUI->ToggleInventory();
+}
+
+void AActionPlayer::SelectInventorySlotFunction(const FInputActionValue& InValue, int32 SlotIndex)
+{
+	if (!IsValid(MainUI) || !MainUI->IsInventoryOpened()) return;
+
+	MainUI->SelectInventorySlot(SlotIndex);
+}
+
+void AActionPlayer::UseSelectedItemFunction(const FInputActionValue& InValue)
+{
+	if (!IsValid(MainUI) || !MainUI->IsInventoryOpened() || !IsValid(InventoryComponent)) return;
+
+	const int32 SelectedSlotIndex = MainUI->GetSelectedSlotIndex();
+
+	if (SelectedSlotIndex == INDEX_NONE) return;
+
+	InventoryComponent->UseItemAtIndex(SelectedSlotIndex);
+}
+
+void AActionPlayer::ThrowSelectedItemFunction(const FInputActionValue& InValue)
+{
+	if (!IsValid(MainUI) || !MainUI->IsInventoryOpened() || !IsValid(InventoryComponent)) return;
+
+	const int32 SelectedSlotIndex = MainUI->GetSelectedSlotIndex();
+
+	UItemDataAsset* ItemData = InventoryComponent->GetItemAtIndex(SelectedSlotIndex);
+
+	if (!IsValid(ItemData))
+	{
+		return;
+	}
+	
+	UWorld* World = GetWorld();
+
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	UItemFactorySubsystem* ItemFactory = World->GetSubsystem<UItemFactorySubsystem>();
+	if (!IsValid(ItemFactory))
+	{
+		return;
+	}
+
+	const FVector SpawnLocation = 
+		GetActorLocation() 
+		+ GetActorForwardVector() * 100.0f 
+		+ FVector::UpVector * 100.0f;
+
+	const FTransform SpawnTransform(GetActorRotation(), SpawnLocation);
+
+	AItemBase* SpawnedItem = ItemFactory->SpawnItemAt(ItemData, SpawnTransform, true, GetActorForwardVector());
+
+	if (!IsValid(SpawnedItem)) return;
+
+	if (!InventoryComponent->RemoveItemAtIndex(SelectedSlotIndex, 1))
+	{
+		SpawnedItem->Destroy();
+	}
+}
+
 void AActionPlayer::EquipWeapon_Implementation(UWeaponDataAsset* InWeaponData)
 {
 	WeaponComponent->EquipWeapon(InWeaponData);
@@ -248,6 +324,13 @@ void AActionPlayer::EquipWeapon_Implementation(UWeaponDataAsset* InWeaponData)
 
 float AActionPlayer::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
+	if (DamageAmount <= 0.0f || !IsValid(StatComponent)) return 0.0f;
+
 	StatComponent->IHealthInterface::Execute_DamageHealth(StatComponent, DamageAmount);
+
+	if (IsValid(MainUI))
+	{
+		MainUI->PlayTakeDamageAnimation();
+	}
 	return DamageAmount;
 }

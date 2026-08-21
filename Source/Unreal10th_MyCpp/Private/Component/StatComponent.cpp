@@ -25,7 +25,8 @@ void UStatComponent::BeginPlay()
 
 	TimerManager.SetTimer(
 		StaminaRecoveryTickTimer,
-		FTimerDelegate::CreateLambda(
+		FTimerDelegate::CreateWeakLambda(
+			this,
 			[this]()
 			{
 				Execute_RecoveryStamina(this, RecoveryStaminaAmount);
@@ -117,7 +118,8 @@ void UStatComponent::OnRunStart()
 
 	TimerManager.SetTimer(
 		StaminaRunCostTimer,
-		FTimerDelegate::CreateLambda(
+		FTimerDelegate::CreateWeakLambda(
+			this,
 			[this]()
 			{
 				if (!IStaminaInterface::Execute_ConsumeStamina(this, RunStaminaCost))
@@ -150,7 +152,8 @@ void UStatComponent::StopRecover()
 
 	TimerManager.SetTimer(
 		StaminaRecoveryCooldownTimer,
-		FTimerDelegate::CreateLambda(
+		FTimerDelegate::CreateWeakLambda(
+			this,
 			[this]()
 			{
 				UWorld* TempWorld = GetWorld();

@@ -21,8 +21,10 @@ class UAnimInstance;
 class UStatComponent;
 class UWidgetComponent;
 class UComboAnimNotifyState;
+class UMainUIWidget;
 class UWeaponDataAsset;
 class UWeaponComponent;
+class UInventoryComponent;
 
 UCLASS()
 class UNREAL10TH_MYCPP_API AActionPlayer : 
@@ -102,11 +104,17 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UStatComponent> StatComponent = nullptr;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	TObjectPtr<UWidgetComponent> StatUIComponent = nullptr;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
+	TSubclassOf<UMainUIWidget> MainUIClass = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UMainUIWidget> MainUI = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UWeaponComponent> WeaponComponent = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
+	TObjectPtr<UInventoryComponent> InventoryComponent = nullptr;
 
 	// Player Inputs
 protected:
@@ -127,6 +135,18 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UInputAction> IA_Attack = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UInputAction> IA_Inventory = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<TObjectPtr<UInputAction>> IA_SelectInventorySlots;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UInputAction> IA_UseItem = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UInputAction> IA_ThrowItem = nullptr;
 
 	// Player Animation
 protected:
@@ -160,6 +180,15 @@ protected:
 	virtual void RollFunction(const FInputActionValue& InValue);
 
 	virtual void AttackFunction(const FInputActionValue& InValue);
+
+	virtual void InventoryFunction(const FInputActionValue& InValue);
+
+	virtual void SelectInventorySlotFunction(const FInputActionValue& InValue, int32 SlotIndex);
+
+	virtual void UseSelectedItemFunction(const FInputActionValue& InValue);
+
+	virtual void ThrowSelectedItemFunction(const FInputActionValue& InValue);
+
 
 	// WeaponUser Interface Function
 public:

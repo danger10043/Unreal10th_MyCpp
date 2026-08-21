@@ -3,6 +3,7 @@
 
 #include "Data/WeaponDataAsset.h"
 #include "Engine/AssetManager.h"
+#include "Data/PoolDataAsset.h"
 #include "NiagaraSystem.h"
 
 void UWeaponDataAsset::RequestDataLoad(FStreamableDelegate InDelegate)

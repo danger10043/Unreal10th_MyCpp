@@ -80,10 +80,14 @@ void ATestEnemy::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 	SetActorLocation(InitialLocation);
 	SetActorRotation(InitialRotation);
-	UCameraComponent* CameraComponent = TargetPlayer->CameraComponent;
-	FVector StatUIDirection = CameraComponent->GetComponentLocation() - StatUIComponent->GetComponentLocation();
-	FRotator StatUIRotation = StatUIDirection.Rotation();
-	StatUIComponent->SetWorldRotation(StatUIRotation);
+
+	if (TargetPlayer.IsValid())
+	{
+		UCameraComponent* CameraComponent = TargetPlayer->CameraComponent;
+		FVector StatUIDirection = CameraComponent->GetComponentLocation() - StatUIComponent->GetComponentLocation();
+		FRotator StatUIRotation = StatUIDirection.Rotation();
+		StatUIComponent->SetWorldRotation(StatUIRotation);
+	}
 }
 
 // Called to bind functionality to input
@@ -111,7 +115,6 @@ float ATestEnemy::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent
 
 void ATestEnemy::AttackFunction()
 {
-	UE_LOG(LogTemp, Log, TEXT("적 : 핫하 받아라!"));
 	UAnimMontage* AttackMontage = WeaponComponent ? WeaponComponent->GetAttackMontage() : nullptr;
 	if (AnimInstance && AttackMontage &&
 		WeaponComponent->GetCurrentWeapon() &&
@@ -126,13 +129,11 @@ void ATestEnemy::AttackFunction()
 		}
 	}
 	else {
-		UE_LOG(LogTemp, Log, TEXT("공격 실패"));
+		//UE_LOG(LogTemp, Log, TEXT("공격 실패"));
 		if (!AnimInstance)
 		{
 			UE_LOG(LogTemp, Log, TEXT("AnimInstance 존재 안함"));
 		}
-		UE_LOG(LogTemp, Log, TEXT("Current Stamina : %f"), GetStatComponent()->IStaminaInterface::Execute_GetCurrentStamina(GetStatComponent()));
-		UE_LOG(LogTemp, Log, TEXT("Need Stamina : %f"), GetStatComponent()->GetStaminaValue(EStaminaValueType::AttackCost));
 	}
 }
 
